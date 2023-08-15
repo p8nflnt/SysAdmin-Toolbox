@@ -9,7 +9,7 @@
     Version: 1.1
     DateCreated: 2023-Aug
 
-.LINKS
+.LINK
     https://paytonflint.com/powershell-add-modify-registry-key/
     https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Set-RegKey.ps1
 #>
