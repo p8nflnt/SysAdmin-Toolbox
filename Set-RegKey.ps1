@@ -11,6 +11,7 @@
 
 .LINKS
     https://paytonflint.com/powershell-add-modify-registry-key/
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Set-RegKey.ps1
 #>
 
 
