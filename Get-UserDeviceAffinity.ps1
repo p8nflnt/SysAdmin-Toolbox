@@ -7,7 +7,7 @@
     Name: Get-UserDeviceAffinity
     Author: Payton Flint
     Version: 1.0
-    DateCreated: 2023-August
+    DateCreated: 2023-Aug
 
 .LINK
     https://paytonflint.com/powershell-programmatically-determine-the-primary-user-of-a-device/
