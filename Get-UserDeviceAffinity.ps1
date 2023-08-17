@@ -6,107 +6,121 @@
 .NOTES
     Name: Get-UserDeviceAffinity
     Author: Payton Flint
-    Version: 1.0
-    DateCreated: 2023-Aug
+    Version: 1.1
+    DateCreated: 2023-August
 
-.LINK
+.LINKS
     https://paytonflint.com/powershell-programmatically-determine-the-primary-user-of-a-device/
     https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-UserDeviceAffinity.ps1
 #>
 
 Function Get-UserDeviceAffinity {
-    # Get computer name
-    $ComputerName = $env:COMPUTERNAME
+    param (
+        $ComputerName,
+        [int]$MaxEvents,
+        [bool]$PsExec
+    )
+    # get session info for logon event
+    function Get-SessionInfo {
+        param (
+            $logonEvent
+        )
+        # get TargetLogonID value from event properties 
+        $logonID = $logonEvent.Properties[7].Value
+
+        # Construct the XPath filter for event 4634 with the specified Logon ID
+        $xPathFilter = @"
+        <QueryList>
+          <Query Id="0" Path="Security">
+            <Select Path="Security">
+              *[System[(EventID=4634 or EventID=4647)]]
+              and
+              *[EventData[Data[@Name='TargetLogonId']='$logonID']]
+            </Select>
+          </Query>
+        </QueryList>
+"@ # end Here-String filter
+
+        # Get logoff events matching above filter
+        $logoffEvent = Get-WinEvent -LogName Security -FilterXPath $xPathFilter -ErrorAction SilentlyContinue
+    
+        # Get logoff events matching above filter
+        if ($logoffEvent) {
+            $duration = $logoffEvent.TimeCreated - $_.TimeCreated
+            $duration = $duration.TotalMilliseconds
+
+            # filter for events greater than 1 second
+            if ($duration -gt '1000'){
+                # create session object
+                $session = [PSCustomObject]@{
+                    Username   = $_.Properties[5].Value
+                    LogonTime  = $_.TimeCreated
+                    LogoffTime = $logoffEvent.TimeCreated
+                    Duration   = $duration
+                }
+            Write-Output $session
+            }
+        }
+    } # End Function Get-SessionInfo
 
     If ($ComputerName -ne $null) {
-        # Get current domain name
-        $Domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
-        $Domain = $Domain.Name
-        # Drop domain suffix & convert to uppercase
-        $Domain = (($Domain.Split('.')[0]).ToUpper())
+        # maximum events to pull w/ Get-WinEvent instances, affects performance
+        $MaxEvents = 3200
 
-        # Get Events w/ ID 4624 (Logon) that match Logon Types: 2
-        $LogonType2 = Get-EventLog -LogName Security -ComputerName $ComputerName -ErrorAction SilentlyContinue -InstanceId 4624 -Message `
-        "*`r`n	Logon Type:		2`r`n	Restricted*	Account Domain:		$Domain`r`n	Logon*	Logon GUID:		{00000000-0000-0000-0000-000000000000}`r`n*" # Message filter
+        # get all logon events
+        $logonEvents =  Get-WinEvent -FilterHashtable @{ LogName="Security"; ID=4624 } -MaxEvents $MaxEvents
 
-        # Get Events w/ ID 4624 (Logon) that match Logon Type: 10
-        $LogonType10 = Get-EventLog -LogName Security -ComputerName $ComputerName -ErrorAction SilentlyContinue -InstanceId 4624 -Message `
-        "*`r`n	Logon Type:		10`r`n	Restricted*	Account Domain:		$Domain`r`n	Logon*	Logon GUID:		{00000000-0000-0000-0000-000000000000}`r`n*" # Message filter
+        # create array for filtered logon events
+        $filteredLogons = @()
 
-        # Combine events w/ Types 2 & 10
-        $LogonEvents = $LogonType2 + $LogonType10
-
-        # Continue only if events matching specified profile are present
-        If ($LogonEvents -ne $null) {
-            # Create UserSessions array
-            $UserSessions = @()
-
-            $LogonEvents | ForEach-Object {
-                # Use regex to extract AccountName from message
-                $pattern = "(?<=New Logon:\s*\r?\n[\s\S]*Account Name:\s+)(\S+)"
-                If ($_.Message -match $pattern) {
-                    $AccountName = $matches[1]
-                }
-                # Use regex to extract LogonID from message
-                $pattern = "(?<=New Logon:\s*\r?\n[\s\S]*Logon ID:\s+)(\S+)"
-                If ($_.Message -match $pattern) {
-                    $LogonID = $matches[1]
-                }
-                # Get computer name
-                $ComputerName = ($_.MachineName.Split('.')[0])
-
-                # Get session end
-                $SessionEnd = Get-EventLog -LogName Security -ComputerName $ComputerName -ErrorAction SilentlyContinue -InstanceId 4634,4647 -Message `
-                "*`r`n	Logon ID:		$LogonID`r`n*" # Message filter
-
-                # Derive session duration
-                If ($SessionEnd -ne $null) {
-                    $SessionDuration = $SessionEnd.TimeGenerated - $_.TimeGenerated
-                } Else {
-                    $SessionDuration = 0
-                }
-                # Create new session object & add properties
-                $SessionObject = New-Object PSObject -Property @{
-                    LogonTime =           $_.TimeGenerated
-                    AccountName =         $AccountName
-                    LogonID =             $LogonID
-                    SessionDuration =     $SessionDuration
-                    ComputerName =        $ComputerName
-                    LogoffTime =          $SessionEnd.TimeGenerated
-                }
-                # Add session objects to array
-                $UserSessions += $SessionObject
+        # get logons meeting criteria
+        $logonEvents | ForEach-Object {
+            If ($_.Properties[8].Value -in '2','7','10','11' -and $_.Properties[9].Value -like "User32*" `
+            -and $_.Properties[12].Value -eq '00000000-0000-0000-0000-000000000000') {
+                # add matches to array
+                $filteredLogons += $_
             }
-            # Group user sessions by account name
-            $AcctSessions = $UserSessions | Group-Object -Property AccountName
-
-            # Group user sessions by account name
-            $AcctSessions | ForEach-Object {
-                $_.Group | ForEach-Object {
-                    $TotalDuration += $_.SessionDuration
-                }
-                # Add total duration of user sessions to each account name group
-                $_ | Add-Member -NotePropertyName 'TotalDuration' -NotePropertyValue $TotalDuration
-                $TotalDuration = $null
-            }
-            # Determine the value of the greatest total session duration per user account
-            $GreatestDuration = ($AcctSessions | Measure-Object -Property TotalDuration -Maximum).Maximum
-
-            # Filter the array to get the object(s) with the highest weight
-            $PrimaryUser = $AcctSessions | Where-Object { $_.TotalDuration -eq $GreatestDuration }
-            # Get username
-            $UserName = $PrimaryUser.Name
-            # Get AD User object
-            $ADUser =   Get-AdUser -Filter {SamAccountName -eq $UserName} -ErrorAction SilentlyContinue
-            $ADName =   $ADUser | Select-Object -ExpandProperty Name
-
-            # Format output
-            Write-Output "Username	: $UserName`r`nName	: $ADName"
         }
-    }
-} # End Function Get-UserDeviceAffinity
 
-# Execute function
-$PrimaryUser = Get-UserDeviceAffinity -ComputerName "$env:COMPUTERNAME"
-# Return result
+        # get session info for all filtered logon events
+        $sessions = $filteredLogons | ForEach-Object {
+            Get-SessionInfo -logonEvent $_
+        }
+
+        # group user sessions by account name
+        $acctSessions = $sessions | Group-Object -Property Username | ForEach-Object {
+            # create objects for groups
+            [PSCustomObject]@{
+                Username =  $_.Name
+                Duration = ($_.Group | Measure-Object -Property Duration -Sum).Sum
+            }
+        }
+
+        # get username of group with greatest duration 
+        $primaryUser = ($acctSessions | Sort-Object -Property Duration -Descending)[0].Username
+
+        # get AD user object
+        $AdUser =   Get-AdUser -Filter {SamAccountName -eq $primaryUser} -ErrorAction SilentlyContinue
+
+        # create hashtable for output
+        $output = @{}
+        $output["Username"] = $primaryUser
+        $output["Name"] =     $AdUser.Name
+
+        # if PsExec param is $True, return key-value pairs separated by a colon rather than objects
+        # (to simplify conversion back to objects via RegEx)
+        If ($PsExec) {
+            $output = $output.GetEnumerator() | ForEach-Object {
+                "{0}: {1}" -f $_.Key, $_.Value
+            }
+        }
+            Write-Output $output
+        } Else {
+            Write-Output "ComputerName is null"
+        }
+} # end function Get-UserDeviceAffinity
+
+# execute function on host and return key-value pairs
+$PrimaryUser = Get-UserDeviceAffinity -ComputerName "$env:COMPUTERNAME" -PsExec $True
+# return result
 $PrimaryUser
