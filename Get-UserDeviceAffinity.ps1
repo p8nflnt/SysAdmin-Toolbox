@@ -9,7 +9,7 @@
     Version: 1.1
     DateCreated: 2023-August
 
-.LINKS
+.LINK
     https://paytonflint.com/powershell-programmatically-determine-the-primary-user-of-a-device/
     https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-UserDeviceAffinity.ps1
 #>
