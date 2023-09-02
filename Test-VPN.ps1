@@ -9,7 +9,7 @@
     DateCreated: 2023-Sep
 
 .LINK
-    https://github.com/p8nflnt/Infosec-Toolbox/blob/main/ConvertTo-Objects.ps1
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Test-VPN.ps1
 #>
 
 # Clear variables for repeatability
