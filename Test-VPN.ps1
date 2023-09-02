@@ -1,3 +1,17 @@
+<#
+.SYNOPSIS
+    Send email notification upon failure and restoration of connectivity test to endpoint across VPN
+    
+.NOTES
+    Name: Test-VPN
+    Author: Payton Flint
+    Version: 1.0
+    DateCreated: 2023-Sep
+
+.LINK
+    https://github.com/p8nflnt/Infosec-Toolbox/blob/main/ConvertTo-Objects.ps1
+#>
+
 # Clear variables for repeatability
 Get-Variable -Exclude PWD,*Preference | Remove-Variable -EA 0
 
