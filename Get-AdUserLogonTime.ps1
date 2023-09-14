@@ -9,7 +9,7 @@
     DateCreated: 2023-Sep
 
 .LINK
-    https://github.com/p8nflnt/
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-AdUserLogonTime.ps1
 #>
 
 Function Get-AdUserLogonTime {
