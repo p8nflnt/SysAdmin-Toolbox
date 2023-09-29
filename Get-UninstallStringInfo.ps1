@@ -9,7 +9,7 @@
     DateCreated: 2023-Sep
 
 .LINK
-    https://paytonflint.com/
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-UninstallStringInfo.ps1
 #>
 
 function Get-UninstallStringInfo {
