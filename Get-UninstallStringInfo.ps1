@@ -1,3 +1,17 @@
+<#
+.SYNOPSIS
+    Return uninstall strings from the Windows registry to uninstall Win32 apps
+
+.NOTES
+    Name: Get-UninstallStringInfo
+    Author: Payton Flint
+    Version: 1.0
+    DateCreated: 2023-Sep
+
+.LINK
+    https://paytonflint.com/
+#>
+
 function Get-UninstallStringInfo {
     param (
         [string]$regPath32 = "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\",
