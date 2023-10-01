@@ -12,6 +12,7 @@
 
 .LINK
     https://paytonflint.com/
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-PdfOcrText.ps1
 #>
 
 Function Get-PdfOcrText {
