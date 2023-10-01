@@ -11,7 +11,7 @@
     DateCreated: 2023-Sep
 
 .LINK
-    https://paytonflint.com/
+    https://paytonflint.com/powershell-extract-text-from-pdf-files/
     https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-PdfOcrText.ps1
 #>
 
