@@ -3,7 +3,7 @@
     Decode-Key function to decode the byte array was written by chentiangemalc.
     Slight modification made, & is being used to decode the byte array stored 
     within the DigitalProductId key @ HKLM\SOFTWARE\Microsoft\Windows NT\CurrentFunction.
-    Also validates the decoded key against the extracted the partial product key.
+    Validates decoded key by length & against the extracted the partial product key.
 
 .NOTES
     Name: Get-WinProductKey
