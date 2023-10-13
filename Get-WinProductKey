@@ -1,0 +1,240 @@
+<#
+.SYNOPSIS
+    From original author, chentiangemalc:
+        - "This script will decode a byte array containing the contents of DigitalProductId and convert it back into original registration key.
+           Note : This doesn’t work for Microsoft products of the 90s such as Visual Basic 6, or Windows 95."
+        - "This can be combined with our... registry searching script, to find and decode all DigitalProductId keys under HKLM..."
+
+    Modifications by Payton Flint:
+        - get the partial product key and use it to find a match in the returned keys
+        - correct the logic for Win8 detection/handling
+
+.NOTES
+    Name: Get-WinProductKey
+    Author: chentiangemalc, Payton Flint
+    Version: 1.1.0
+    DateCreated: 2023-Oct
+
+.LINK
+    https://chentiangemalc.wordpress.com/2021/02/23/decode-digitalproductid-registry-keys-to-original-product-key-with-powershell/
+#>
+
+$code = @'
+using Microsoft.VisualBasic.CompilerServices;
+using Microsoft.Win32;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+ 
+namespace RegUtils
+{
+    public class RegistryFinder
+    {
+        public ConcurrentBag<KeyValuePair<string,string>> Results;
+ 
+        public RegistryFinder()
+        {
+            Results = new ConcurrentBag<KeyValuePair<string, string>>();
+        }
+ 
+        public void FindRegValueData(RegistryKey SubKey, string pattern)
+        {
+            FindRegValueData(SubKey, pattern, true);
+        }
+ 
+        private void FindRegValueData(RegistryKey SubKey, string pattern, bool first)
+        {
+            Parallel.ForEach(SubKey.GetSubKeyNames(), sub =>
+            {
+                try
+                {
+                    if (first)
+                    {
+                        foreach (var valueName in SubKey.GetValueNames())
+                        {
+                            if (SubKey.GetValue(valueName) != null)
+                            {
+                                if (LikeOperator.LikeString(SubKey.GetValue(valueName).ToString(), pattern, Microsoft.VisualBasic.CompareMethod.Text))
+                                {
+                                    Results.Add(new KeyValuePair<string,string>(SubKey.Name, valueName));
+                                }
+                            }
+                        }
+                    }
+ 
+                    RegistryKey local = SubKey.OpenSubKey(sub);
+                    foreach (var valueName in local.GetValueNames())
+                    {
+                        if (local.GetValue(valueName) != null)
+                        {
+                            if (LikeOperator.LikeString(local.GetValue(valueName).ToString(), pattern, Microsoft.VisualBasic.CompareMethod.Text))
+                            {
+                                Results.Add(new KeyValuePair<string, string>(local.Name, valueName));
+                            }
+                        }
+                    }
+ 
+                    FindRegValueData(local, pattern, false);
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // expect we will get some of these and ignore
+                }
+            });
+        }
+ 
+        public void FindRegValueNames(RegistryKey SubKey, string pattern)
+        {
+            FindRegValueNames(SubKey, pattern, true);
+        }
+ 
+        private void FindRegValueNames(RegistryKey SubKey, string pattern, bool first)
+        {
+            Parallel.ForEach(SubKey.GetSubKeyNames(), sub =>
+            {
+                try
+                {
+                    if (first)
+                    {
+                        foreach (var valueName in SubKey.GetValueNames())
+                        {
+                            if (LikeOperator.LikeString(valueName, pattern, Microsoft.VisualBasic.CompareMethod.Text))
+                            {
+                                Results.Add(new KeyValuePair<string, string>(SubKey.Name, valueName));
+                            }
+                        }
+                    }
+ 
+                    RegistryKey local = SubKey.OpenSubKey(sub);
+                    foreach (var valueName in local.GetValueNames())
+                    {
+                        if (LikeOperator.LikeString(valueName, pattern, Microsoft.VisualBasic.CompareMethod.Text))
+                        {
+                            Results.Add(new KeyValuePair<string, string>(local.Name, valueName));
+                        }
+                    }
+ 
+                    FindRegValueNames(local, pattern, false);
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // expect we will get some of these and ignore
+                }
+            });
+        }
+        public void FindRegKeys(RegistryKey SubKey, string pattern)
+        {
+            Parallel.ForEach(SubKey.GetSubKeyNames(), sub =>
+            {
+                if (LikeOperator.LikeString(sub, pattern, Microsoft.VisualBasic.CompareMethod.Text))
+                {
+                    Results.Add(new KeyValuePair<string, string>(String.Format("{0}\\{1}", SubKey.Name, sub),null));
+                }
+                try
+                {
+                    RegistryKey local = SubKey.OpenSubKey(sub);
+                    FindRegKeys(local, pattern);
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // expect we will get some of these and ignore
+                }
+            });
+        }
+ 
+    }
+}
+'@
+ 
+Function Decode-Key {
+    param(
+        [byte[]] $key
+    )
+ 
+    $KeyOutput= ""
+    $KeyOffset = 52 
+     
+    $IsWin8 = ([System.Math]::Truncate($key[66] / 6)) -band 1 
+    $key[66] = ($Key[66] -band 0xF7) -bor (($isWin8 -band 2) * 4) 
+    $i = 24 
+    $maps = "BCDFGHJKMPQRTVWXY2346789" 
+    Do {
+        $current= 0 
+        $j = 14
+        Do {
+           $current = $current* 256 
+           $current = $Key[$j + $KeyOffset] + $Current 
+           $Key[$j + $KeyOffset] = [System.Math]::Truncate($Current / 24 )
+           $Current=$Current % 24 
+           $j--
+        } while ($j -ge 0) 
+        $i-- 
+        $KeyOutput = $Maps.Substring($Current, 1) + $KeyOutput 
+        $last = $current 
+    } while ($i -ge 0)
+    
+    If ($isWin8 -eq 1) { 
+        $keypart1 = $KeyOutput.Substring(1,$last)
+        $insert = "N"
+        If ($keypart1 -eq "") {
+            $KeyOutput = $insert
+        } Else {
+            $KeyOutput = $KeyOutput.Replace($keypart1, $keypart1 + $insert)
+        }
+        if ($Last -eq 0) {
+            $KeyOutput = $insert + $KeyOutput
+        }
+    }
+  
+    if ($keyOutput.Length -eq 26){
+        $result = [String]::Format("{0}-{1}-{2}-{3}-{4}",
+            $KeyOutput.Substring(1, 5),
+            $KeyOutput.Substring(6, 5),
+            $KeyOutput.Substring(11,5),
+            $KeyOutput.Substring(16,5),
+            $KeyOutput.Substring(21,5))
+    }   
+    else{
+        $KeyOutput
+    }
+    return $result
+}
+ 
+Add-Type -TypeDefinition $code -ReferencedAssemblies Microsoft.VisualBasic.dll
+ 
+$regFinder = New-Object RegUtils.RegistryFinder
+ 
+$searchTerm = "DigitalProductId"
+ 
+$baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
+$regFinder.FindRegValueNames($baseKey, $searchTerm)
+
+# initialize output array 
+$outKeys = @()
+
+ForEach ($result in $regFinder.Results)
+{
+    #$result.Key
+    $keyName = $result.Key.Replace("HKEY_LOCAL_MACHINE\","HKLM:\").Replace("HKEY_CURRENT_USER","HKCU:\")
+    $keyData = (Get-ItemProperty -Path $keyName).DigitalProductId
+    # add keys to array
+    $outKeys += Decode-Key $keyData
+}
+
+# get partial product key, remove empty results and trim
+$partProdKey = ((Get-CimInstance -Query 'SELECT PartialProductKey FROM SoftwareLicensingProduct WHERE Name LIKE "Windows%"').PartialProductKey `
+ | Where-Object {$_ -notlike ""}).Trim()
+
+# get items that end w/ the partial product key
+$matches = $outKeys | Where-Object {$_ -like "*$partProdKey"}
+
+# get unique items
+$result = $matches | Select-Object -Unique
+
+$result
