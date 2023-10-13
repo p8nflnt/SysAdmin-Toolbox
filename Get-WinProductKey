@@ -24,7 +24,7 @@ Function Decode-Key {
     $KeyOffset = 52 
      
     $IsWin8 = ([System.Math]::Truncate($key[66] / 6)) -band 1 
-    $key[66] = ($Key[66] -band 0xF7) -bor (($isWin8 -band 2) * 4) 
+    $key[66] = ($key[66] -band 0xF7) -bor (($isWin8 -band 2) * 4) 
     $i = 24 
     $maps = "BCDFGHJKMPQRTVWXY2346789" 
     Do {
