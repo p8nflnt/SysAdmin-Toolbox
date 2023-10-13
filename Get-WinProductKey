@@ -72,6 +72,9 @@ Function Decode-Key {
 # specify the registry key path
 $registryPath = "HKLM:\Software\Microsoft\Windows NT\CurrentVersion"
 
+# specify the decoded key length for validation
+$keyLength = 29
+
 # get the property value of a specific key
 $keyData = $(Get-ItemProperty -Path $registryPath -Name "DigitalProductId").DigitalProductId
 
@@ -83,8 +86,8 @@ $partProdKey = ((Get-CimInstance -Query 'SELECT PartialProductKey FROM SoftwareL
  | Where-Object {$_ -notlike ""}).Trim()
 
 # confirm result ends w/ the partial product key
-if ($decodedKey -like "*$partProdKey") {
+if ($decodedKey -like "*$partProdKey" -and $decodedKey.Length -eq $keyLength) {
     Write-Output $decodedKey
 } else {
-    Write-Output "Decoded key does not end w/ the extracted partial product key."
+    Write-Output "Decoded key is the improper length and/or does not end with the extracted partial product key."
 }
