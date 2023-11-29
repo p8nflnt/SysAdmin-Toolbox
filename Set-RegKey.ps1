@@ -15,15 +15,17 @@
 #>
 
 
-$regPath  = ‘<INSERT PATH>'
-$regName  = ‘<INSERT NAME>'
-$regValue = ‘<INSERT VALUE>'
+$regPath  = '<INSERT PATH>'
+$regName  = '<INSERT NAME>'
+$regValue = '<INSERT VALUE>'
+$propType = 'DWord' # 'String', 'ExpandString', 'Binary', 'DWord', 'MultiString', 'QWord', 'Unknown'
 
 Function Set-RegKey {
     param(
     $regPath,
     $regName,
     $regValue,
+    $propType,
     [bool]$silent
     )
     $regFull = Join-Path $regPath $regName
@@ -40,7 +42,7 @@ Function Set-RegKey {
                             Write-Host -ForegroundColor Red 'Registry key' $regFull 'value is not' $regValue'.'
                             Write-Host -ForegroundColor Cyan 'Setting registry key' $regFull 'value to' $regValue'.'
                         }
-                        New-ItemProperty -Path $regPath -Name $regName -Value $regValue -PropertyType DWORD -Force | Out-Null
+                        New-ItemProperty -Path $regPath -Name $regName -Value $regValue -PropertyType $propType -Force | Out-Null
                         $CurrentKeyValue = (Get-ItemProperty -Path $regPath -Name $regName -ErrorAction SilentlyContinue).$regName
                         If ($CurrentKeyValue -eq $regValue) {
                             If (!($silent)) {
@@ -62,7 +64,7 @@ Function Set-RegKey {
                     If (!($silent)) {
                         Write-Host -ForegroundColor Cyan 'Setting registry key' $regFull 'value to' $regValue'.'
                     }
-                    New-ItemProperty -Path $regPath -Name $regName -Value $regValue -PropertyType DWORD -Force | Out-Null
+                    New-ItemProperty -Path $regPath -Name $regName -Value $regValue -PropertyType $propType -Force | Out-Null
                     $CurrentKeyValue = (Get-ItemProperty -Path $regPath -Name $regName -ErrorAction SilentlyContinue).$regName
                     If ($CurrentKeyValue -eq $regValue) {
                         If (!($silent)) {
@@ -82,4 +84,4 @@ Function Set-RegKey {
         }
 } # End Function Set-RegKey
 
-Set-RegKey -regPath $regPath -regName $regName -regValue $regValue -silent <BOOL>
+Set-RegKey -regPath $regPath -regName $regName -regValue $regValue -propType $propType -silent <BOOL>
