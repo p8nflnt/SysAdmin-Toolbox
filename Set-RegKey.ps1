@@ -6,7 +6,7 @@
 .NOTES
     Name: Set-RegKey
     Author: Payton Flint
-    Version: 1.1
+    Version: 1.2
     DateCreated: 2023-Aug
 
 .LINK
