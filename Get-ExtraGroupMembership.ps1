@@ -9,7 +9,8 @@
     DateCreated: 2023-Nov
     
 .LINK
-    https://
+    https://github.com/p8nflnt/SysAdmin-Toolbox/blob/main/Get-ExtraGroupMembership.ps1
+    https://paytonflint.com/powershell-ad-cleanup-get-extraneous-group-membership/
 #>
 
 $scriptPath = Split-Path ($MyInvocation.MyCommand.Path) -Parent
