@@ -9,7 +9,8 @@
     DateCreated: 2023-Dec
 
 .LINK
-    https://
+    https://github.com/p8nflnt/SysAdmin-Toolbox/edit/main/Convert-AdName.ps1
+    https://paytonflint.com/powershell-active-directory-convert-ad-name-formats/
 #>
 
 Function Convert-ADName {
